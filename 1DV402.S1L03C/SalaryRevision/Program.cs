@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using System.Resources;
 using System.Reflection;
 
+
 namespace SalaryRevision
 {
 	class Program
@@ -19,14 +20,29 @@ namespace SalaryRevision
 			rm = new ResourceManager("SalaryRevision.Strings", Assembly.GetExecutingAssembly());
 
 			int noOfSalaries = 0;
-			int[] salaries;
 			do
 			{
-				noOfSalaries = ReadInt(rm.GetString("NoOfSalaries_Prompt"));
-				salaries = ReadSalaries(noOfSalaries);
-				ViewResult(salaries);
+				int[] salaries;
+				try
+				{
+					noOfSalaries = ReadInt(rm.GetString("NoOfSalaries_Prompt"));
+					if (noOfSalaries < 2)
+					{
+						throw new ArgumentException(rm.GetString("Error2_Message"));
+					}
 
-			} while (IsContinuing());
+					salaries = ReadSalaries(noOfSalaries);
+					ViewResult(salaries);
+				}
+				catch (ArgumentException exception)
+				{
+					viewMessage(string.Format(exception.Message, noOfSalaries), ConsoleColor.Red);
+				}
+				catch
+				{
+					viewMessage(string.Format(rm.GetString("Error_Message"), noOfSalaries), ConsoleColor.Red);
+				}
+			} while ((noOfSalaries < 2) || IsContinuing());
 		}
 		/// <summary>
 		/// Prints a message and expects a key respons from the user.
@@ -41,31 +57,35 @@ namespace SalaryRevision
 		}
 		/// <summary>
 		/// Read input from user/screen which must be an integer.
+		/// 
 		/// </summary>
 		/// <param name="prompt"></param>
 		/// <returns></returns>
 		private static int ReadInt(string prompt)
 		{
 			int ret = 0;
-			string input=""; 
-			do
+			string input="";
+			bool getInput = true;
+
+			while (getInput)
 			{
 				try
 				{
 					Console.Write(prompt);
 					input = Console.ReadLine();
 					ret = int.Parse(input);
-
-					if (ret < 2)
-					{
-						viewMessage(rm.GetString("Error2_Message"), ConsoleColor.Red);
-					}
+					getInput = false;
+				}
+				catch (FormatException)
+				{
+					viewMessage(string.Format(rm.GetString("Error_Message"), input), ConsoleColor.Red);
 				}
 				catch
 				{
 					viewMessage(string.Format(rm.GetString("Error_Message"), input), ConsoleColor.Red);
 				}
-			} while (ret < 2);
+			}
+
 			return ret;
 		}
 		/// <summary>
@@ -76,12 +96,29 @@ namespace SalaryRevision
 		/// <returns></returns>
 		private static int[] ReadSalaries(int count)
 		{
-			int[] iaSalaries = new int[count];
+			int[] salaries = new int[count];
 			for (int i=0; i<count; i++)
 			{
-				iaSalaries[i] = ReadInt(string.Format(rm.GetString("Salary_Prompt"), i + 1));
+				try
+				{
+					salaries[i] = ReadInt(string.Format(rm.GetString("Salary_Prompt"), i + 1));
+					if (salaries[i] < 0)
+					{
+						throw new ArgumentException(rm.GetString("Error_Message"));
+					}
+				}
+				catch (ArgumentException exception)
+				{
+					viewMessage(string.Format(exception.Message, salaries[i]), ConsoleColor.Red);
+					i--;
+				}
+				catch
+				{
+					viewMessage(string.Format(rm.GetString("Error_Message"), salaries[i]), ConsoleColor.Red);
+					i--;
+				}
 			}
-			return iaSalaries;
+			return salaries;
 		}
 
 		private static void viewMessage(string message, ConsoleColor backgroundColor = ConsoleColor.Blue, ConsoleColor foregroundColor = ConsoleColor.White)
@@ -90,7 +127,8 @@ namespace SalaryRevision
 			Console.BackgroundColor = backgroundColor;
 			Console.ForegroundColor = foregroundColor;
 			Console.WriteLine(message);
-			Console.BackgroundColor = ConsoleColor.Black;
+			Console.ForegroundColor = ConsoleColor.White;
+			Console.BackgroundColor = ConsoleColor.Black; 
 			Console.WriteLine("");
 		}
 		/// <summary>
@@ -114,61 +152,18 @@ namespace SalaryRevision
 
 			// print given salaries, three in each row
 			int noOfSalaries = salaries.Length;
-			int rows = noOfSalaries / 3;
+			int fullRows = noOfSalaries / 3;
 			int lastRow = noOfSalaries % 3;
 			int item = 0;
-			for (int i=0; i<rows; i++)
+			for (int i = 0; i < fullRows; i++)
 			{
-				Console.WriteLine(String.Format("{0,8}{1,8}{2,8}", salaries[item], salaries[item+1], salaries[item+2]));
-				item +=2;
+				Console.WriteLine(String.Format("{0,8}{1,8}{2,8}", salaries[item], salaries[item + 1], salaries[item + 2]));
+				item += 3;
 			}
-			if (lastRow > 0)
-			{
-				if (lastRow == 1)
-					Console.WriteLine(String.Format("{0,8}", salaries[item+1]));
-				else if (lastRow == 2)
-					Console.WriteLine(String.Format("{0,8}{1,8}", salaries[item+1], salaries[item+2]));
-			}
-		}
-	}
-
-	static class MyExtensions
-	{
-		/// <summary>
-		/// Calculates dispersion for given values in the integer array parameter
-		/// </summary>
-		/// <param name="source"></param>
-		/// <returns></returns>
-		public static int Dispersion(this int[] source)
-		{
-			int ret = 0;
-			int maxValue = source.Max();
-			int minValue = source.Min();
-			return ret = maxValue - minValue;
-		}
-		/// <summary>
-		/// Calculates median for given values in the integer array parameter
-		/// </summary>
-		/// <param name="source"></param>
-		/// <returns></returns>
-		public static int Median(this int[] source)
-		{
-			int median = 0;
-			int noOfElements = source.Length;
-			int[] sortedSource = new int[noOfElements];
-			// Input parameter source must not be altered. 
-			// Create a copy of the array to do the math
-			Array.Copy(source, sortedSource, source.Length);
-			Array.Sort(sortedSource);
-
-			if ((noOfElements % 2) == 0)
-			{
-				// even numbers, caluculate median as an average of the two
-				median = (sortedSource[sortedSource.Length/2 - 1] + sortedSource[sortedSource.Length/2]) / 2;
-			}
-			else
-				median = sortedSource[noOfElements/2];   // index of array starts at 0
-			return median;
+			if (lastRow == 1)
+				Console.WriteLine(String.Format("{0,8}", salaries[item]));
+			else if (lastRow == 2)
+				Console.WriteLine(String.Format("{0,8}{1,8}", salaries[item], salaries[item + 1]));
 		}
 	}
 }
